@@ -1,0 +1,44 @@
+# Illustrative only. This is not an approved business definition.
+formatVersion: 0-draft
+metricId: metric_open_wip_example
+name: Open WIP
+status: example
+origin:
+  classification: HumanDecision
+  note: Placeholder showing the intended shape of a future reviewed contract.
+description: >-
+  Unbilled work in progress as of a selected reporting date.
+ownership:
+  businessOwner: null
+  technicalOwner: null
+grain:
+  base: time-entry
+  reporting:
+    - matter
+    - responsible-timekeeper
+    - currency
+dateSemantics:
+  field: dbo.TimeCard.WorkDate
+  startBoundary: not-applicable
+  endBoundary: inclusive-calendar-date
+requiredSources:
+  - dbo.TimeCard
+  - dbo.Matter
+requiredRules:
+  - ruleId: exclude-deleted-time
+    expression: dbo.TimeCard.IsDeleted = 0
+  - ruleId: exclude-billed-time
+    expression: dbo.TimeCard.IsBilled = 0
+requiredCalculation:
+  expression: SUM(dbo.TimeCard.Amount)
+permittedVariations:
+  - variationId: open-matters-only
+    description: A report may exclude closed matters when its title and purpose explicitly state that limitation.
+prohibitedPatterns:
+  - description: Do not substitute PostingDate for WorkDate without an approved metric revision or report-specific variation.
+referenceImplementations: []
+knownLimitations:
+  - Disbursement treatment is intentionally omitted from this illustrative draft.
+approval:
+  approvedBy: null
+  approvedAtUtc: null

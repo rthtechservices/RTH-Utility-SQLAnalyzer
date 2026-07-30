@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rthtechservices.example/schemas/dataset-signature.v0.draft.schema.json",
+  "title": "Dataset T-SQL Signature Draft v0",
+  "description": "Exploratory contract for deterministic T-SQL facts extracted from one SSRS dataset command. This draft is not a released workspace format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "signatureId",
+    "source",
+    "analysis",
+    "parseStatus",
+    "statements",
+    "diagnostics"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": "0-draft"
+    },
+    "signatureId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportRevisionId", "datasetId", "queryArtefactId", "sourceHash"],
+      "properties": {
+        "reportRevisionId": { "type": "string", "minLength": 1 },
+        "datasetId": { "type": "string", "minLength": 1 },
+        "queryArtefactId": { "type": "string", "minLength": 1 },
+        "sourceHash": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "rdlElementPath": { "type": ["string", "null"] }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "engineVersion", "signatureGeneratorVersion", "sqlDialect", "generatedAtUtc"],
+      "properties": {
+        "engine": { "const": "Microsoft.SqlServer.TransactSql.ScriptDom" },
+        "engineVersion": { "type": "string", "minLength": 1 },
+        "signatureGeneratorVersion": { "type": "string", "minLength": 1 },
+        "sqlDialect": { "type": "string", "minLength": 1 },
+        "generatedAtUtc": { "type": "string", "format": "date-time" }
+      }
+    },
+    "parseStatus": {
+      "enum": ["Success", "SuccessWithWarnings", "Failed", "NotApplicable"]
+    },
+    "statements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/statement" }
+    },
+    "parameters": {
+      "type": "array",
+      "default": [],
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "variables": {
+      "type": "array",
+      "default": [],
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containsDynamicSql": { "type": "boolean", "default": false },
+        "containsTemporaryObjects": { "type": "boolean", "default": false },
+        "containsUnsupportedAnalysis": { "type": "boolean", "default": false }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    }
+  },
+  "$defs": {
+    "sourceSpan": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["offset", "length"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "length": { "type": "integer", "minimum": 0 },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "column": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "identifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original", "normalised"],
+      "properties": {
+        "original": { "type": "string" },
+        "normalised": { "type": "string" },
+        "span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    },
+    "objectReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original", "parts", "alias"],
+      "properties": {
+        "original": { "type": "string" },
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": { "type": "string" }
+        },
+        "alias": { "type": ["string", "null"] },
+        "referenceType": {
+          "enum": ["TableOrView", "Function", "Procedure", "TemporaryObject", "Unknown"]
+        },
+        "span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    },
+    "expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original", "normalised"],
+      "properties": {
+        "original": { "type": "string" },
+        "normalised": { "type": "string" },
+        "alias": { "type": ["string", "null"] },
+        "span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    },
+    "join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["joinType", "target", "predicate"],
+      "properties": {
+        "joinType": {
+          "enum": ["Inner", "LeftOuter", "RightOuter", "FullOuter", "Cross", "CrossApply", "OuterApply", "Unknown"]
+        },
+        "target": { "$ref": "#/$defs/objectReference" },
+        "predicate": { "anyOf": [{ "$ref": "#/$defs/expression" }, { "type": "null" }] },
+        "span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    },
+    "statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statementType",
+        "sources",
+        "joins",
+        "projections",
+        "wherePredicates",
+        "groupBy",
+        "aggregations",
+        "isDistinct"
+      ],
+      "properties": {
+        "statementType": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/objectReference" }
+        },
+        "joins": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/join" }
+        },
+        "projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "wherePredicates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "havingPredicates": {
+          "type": "array",
+          "default": [],
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "groupBy": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "orderBy": {
+          "type": "array",
+          "default": [],
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "aggregations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "isDistinct": { "type": "boolean" },
+        "topExpression": {
+          "anyOf": [{ "$ref": "#/$defs/expression" }, { "type": "null" }]
+        },
+        "span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "origin"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["Information", "Warning", "Error", "Fatal"] },
+        "message": { "type": "string", "minLength": 1 },
+        "origin": { "enum": ["ScriptDom", "SignatureGenerator", "ImportPipeline"] },
+        "span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    }
+  }
+}
